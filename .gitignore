@@ -1,0 +1,72 @@
+# ---- ビルド成果物 ----
+bin/
+obj/
+publish/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+artifacts/
+*.dll
+*.exe
+*.pdb
+*.zip
+
+# ---- Visual Studio / Rider / VS Code ----
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.DotSettings.user
+
+# ---- NuGet ----
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!packages/build/
+project.lock.json
+project.fragment.lock.json
+
+# ---- テスト / カバレッジ ----
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+
+# ---- OS ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ---- ログ / 一時ファイル ----
+*.log
+*.tmp
+*.cache
+*~
+
+# =========================================================
+# このプロジェクト固有
+# =========================================================
+# 認証情報。アプリは書き込まないが、動作確認用に
+# 手元へコピーしたものを誤ってコミットしないための保険。
+.credentials.json
+*.credentials.json
+credentials.json
+
+# logRawResponse で書き出される生レスポンス。
+# 使用量そのものは機密ではないが、意図せず混入させない。
+last-response.json
+
+# 動作確認用に持ち込んだ設定ファイル
+config.json

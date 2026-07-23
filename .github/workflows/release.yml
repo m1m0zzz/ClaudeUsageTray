@@ -1,0 +1,182 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "バージョン (例: 1.0.0 / 1.1.0-beta.1)。先頭の v は付けても付けなくても可"
+        required: true
+        type: string
+      draft:
+        description: "下書きとして作成する（公開は手動）"
+        required: false
+        type: boolean
+        default: true
+      prerelease:
+        description: "プレリリースとして公開する"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  # リポジトリ構成を変えた場合はここだけ直せば動きます
+  PROJECT_PATH: src/ClaudeUsageTray.csproj
+  ASSEMBLY_NAME: ClaudeUsageTray
+  RUNTIME_ID: win-x64
+  DOTNET_VERSION: "9.0.x"
+
+jobs:
+  release:
+    # WinForms の self-contained publish は Windows ランナーで行う
+    runs-on: windows-latest
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+        with:
+          # --generate-notes が前回タグとの差分を出せるよう履歴を全部取る
+          fetch-depth: 0
+
+      - name: バージョンの検証と正規化
+        id: version
+        shell: bash
+        env:
+          # ${{ inputs.version }} を run 内に直接展開するとシェルインジェクションの
+          # 余地が生まれるため、必ず環境変数を経由させる
+          RAW_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${RAW_VERSION#v}"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::バージョン形式が不正です: '$RAW_VERSION'（例: 1.0.0, 1.1.0-beta.1）"
+            exit 1
+          fi
+
+          # AssemblyVersion / FileVersion はプレリリース識別子を受け付けないため数値部だけ使う
+          CORE="${VERSION%%-*}"
+          TAG="v$VERSION"
+
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::タグ $TAG は既に存在します"
+            exit 1
+          fi
+
+          {
+            echo "version=$VERSION"
+            echo "core=$CORE"
+            echo "tag=$TAG"
+            echo "zip=${ASSEMBLY_NAME}-${TAG}-${RUNTIME_ID}.zip"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "### リリース $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: .NET SDK のセットアップ
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 復元
+        run: dotnet restore "${{ env.PROJECT_PATH }}" -r ${{ env.RUNTIME_ID }}
+
+      - name: 発行
+        run: >
+          dotnet publish "${{ env.PROJECT_PATH }}"
+          --configuration Release
+          --runtime ${{ env.RUNTIME_ID }}
+          --no-restore
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:FileVersion=${{ steps.version.outputs.core }}
+          -p:AssemblyVersion=${{ steps.version.outputs.core }}
+          -p:InformationalVersion=${{ steps.version.outputs.version }}
+          --output publish
+
+      - name: 発行内容の確認と整理
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "--- publish (整理前) ---"
+          ls -la publish
+
+          # デバッグシンボルは配布しない
+          rm -f publish/*.pdb
+
+          EXE="publish/${ASSEMBLY_NAME}.exe"
+          if [[ ! -f "$EXE" ]]; then
+            echo "::error::$EXE が生成されていません"
+            exit 1
+          fi
+
+          # README はリポジトリ直下にある前提
+          if [[ -f README.md ]]; then
+            cp README.md publish/
+          else
+            echo "::warning::README.md が見つかりません。同梱をスキップします"
+          fi
+
+          for f in LICENSE LICENSE.md LICENSE.txt; do
+            if [[ -f "$f" ]]; then cp "$f" publish/; fi
+          done
+
+          echo "--- publish (配布物) ---"
+          ls -la publish
+
+          # self-contained + PublishSingleFile なら exe 単体で動くはず。
+          # 想定外のランタイムファイルが残っていたら気づけるようログに出す。
+          EXTRA=$(find publish -maxdepth 1 -type f \
+            ! -name "${ASSEMBLY_NAME}.exe" \
+            ! -name 'README.md' ! -name 'LICENSE*' | wc -l)
+          echo "exe / ドキュメント以外のファイル数: $EXTRA"
+
+          {
+            echo ""
+            echo "配布物:"
+            echo '```'
+            ls -1 publish
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: ZIP を作成
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish\* `
+            -DestinationPath "${{ steps.version.outputs.zip }}" -Force
+
+      - name: ビルド成果物をアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ASSEMBLY_NAME }}-${{ steps.version.outputs.tag }}
+          path: publish/**
+          retention-days: 14
+
+      - name: リリースを作成
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          ZIP: ${{ steps.version.outputs.zip }}
+          IS_DRAFT: ${{ inputs.draft }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          ARGS=(
+            "$TAG"
+            --title "$TAG"
+            --target "$GITHUB_SHA"
+            --generate-notes
+          )
+
+          [[ "$IS_DRAFT" == "true" ]] && ARGS+=(--draft)
+          [[ "$IS_PRERELEASE" == "true" ]] && ARGS+=(--prerelease)
+
+          gh release create "${ARGS[@]}" "$ZIP"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "リリース: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
+            >> "$GITHUB_STEP_SUMMARY"

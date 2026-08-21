@@ -362,6 +362,7 @@ public sealed class TrayContext : ApplicationContext
         {
             AppConfig loaded = AppConfig.Load();
             _config.CopyFrom(loaded);
+            _popup.SyncSettings();
 
             _timer.Interval = _config.PollSeconds * 1000;
 

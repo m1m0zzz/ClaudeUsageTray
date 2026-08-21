@@ -8,14 +8,13 @@ public sealed record ToastMessage(string Title, string Body);
 /// 3 分間隔でポーリングするため、単純な比較だと 80% を超えた状態が続く間ずっと
 /// 通知が飛び続ける。そのためレベル（0=通常 / 1=警告 / 2=上限）を記憶し、
 /// レベルが上がったときだけ発火する。
-/// resets_at が変わった＝枠がリセットされたとみなしてレベルを 0 に戻す（再武装）。
+/// 使用率が下がったときはそのレベルへ追従し、次の閾値跨ぎに備える。
 /// </summary>
 public sealed class ThresholdNotifier
 {
     private sealed class QuotaState
     {
         public int Level;
-        public DateTimeOffset? ArmedFor;
     }
 
     private readonly AppConfig _config;
@@ -37,7 +36,11 @@ public sealed class ThresholdNotifier
             Check(messages, "seven_day", "週間枠", response.SevenDay);
         }
 
-        return messages;
+        // OFF 中も Check は実行してレベルを追跡する。
+        // ON に戻しただけで、その時点の超過分を誤発火させないため。
+        return _config.NotificationsEnabled
+            ? messages
+            : Array.Empty<ToastMessage>();
     }
 
     /// <summary>取得失敗が続いた後に誤発火しないよう、明示的にリセットしたい場合に使う。</summary>
@@ -55,13 +58,6 @@ public sealed class ThresholdNotifier
         {
             state = new QuotaState();
             _states[key] = state;
-        }
-
-        // 枠がリセットされたら再武装する
-        if (state.ArmedFor != window.ResetsAt)
-        {
-            state.ArmedFor = window.ResetsAt;
-            state.Level = 0;
         }
 
         int level = percent.Value >= _config.LimitThresholdPercent ? 2

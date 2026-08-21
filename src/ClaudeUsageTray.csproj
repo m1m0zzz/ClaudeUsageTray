@@ -22,4 +22,9 @@
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\bell.svg"
+                      LogicalName="ClaudeUsageTray.Assets.bell.svg" />
+  </ItemGroup>
+
 </Project>

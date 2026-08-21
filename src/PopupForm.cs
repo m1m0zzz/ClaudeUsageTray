@@ -10,15 +10,237 @@ public sealed class PopupForm : Form
 {
     private sealed record Row(string Label, double? Percent, string Sub, bool Muted = false);
 
+    /// <summary>背景・枠線・フォーカスを同じ丸角パスで描画するボタン。</summary>
+    private sealed class RoundedButton : Button
+    {
+        private bool _hovered;
+        private bool _pressed;
+
+        public RoundedButton()
+        {
+            FlatStyle = FlatStyle.Flat;
+            UseVisualStyleBackColor = false;
+            SetStyle(
+                ControlStyles.UserPaint
+                | ControlStyles.AllPaintingInWmPaint
+                | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.ResizeRedraw,
+                true);
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            base.OnMouseEnter(e);
+            _hovered = true;
+            Invalidate();
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            _hovered = false;
+            _pressed = false;
+            Invalidate();
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button == MouseButtons.Left)
+            {
+                _pressed = true;
+                Invalidate();
+            }
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            _pressed = false;
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            Color fill = BackColor;
+            if (_pressed && !FlatAppearance.MouseDownBackColor.IsEmpty)
+            {
+                fill = FlatAppearance.MouseDownBackColor;
+            }
+            else if (_hovered && !FlatAppearance.MouseOverBackColor.IsEmpty)
+            {
+                fill = FlatAppearance.MouseOverBackColor;
+            }
+
+            using GraphicsPath surface = PopupForm.RoundedRect(
+                new RectangleF(0.5f, 0.5f, Width - 1, Height - 1),
+                PopupForm.ButtonCornerRadius);
+            using (var brush = new SolidBrush(fill))
+            {
+                g.FillPath(brush, surface);
+            }
+
+            using (var pen = new Pen(FlatAppearance.BorderColor))
+            {
+                g.DrawPath(pen, surface);
+            }
+
+            TextRenderer.DrawText(
+                g,
+                Text,
+                Font,
+                ClientRectangle,
+                Enabled ? ForeColor : SystemColors.GrayText,
+                TextFormatFlags.HorizontalCenter
+                | TextFormatFlags.VerticalCenter
+                | TextFormatFlags.EndEllipsis
+                | TextFormatFlags.NoPrefix);
+
+            if (Focused && ShowFocusCues)
+            {
+                using GraphicsPath focus = PopupForm.RoundedRect(
+                    new RectangleF(3.5f, 3.5f, Width - 7, Height - 7),
+                    3.5f);
+                using var focusPen = new Pen(ForeColor) { DashStyle = DashStyle.Dot };
+                g.DrawPath(focusPen, focus);
+            }
+        }
+    }
+
+    /// <summary>埋め込み SVG でベル／ミュート状態を描画するトグル。</summary>
+    private sealed class NotificationToggleButton : CheckBox
+    {
+        private bool _hovered;
+        private readonly SvgPathIcon _bellIcon;
+        private Color _iconColor = SystemColors.ControlText;
+        private Color _borderColor = SystemColors.ControlDark;
+        private Color _hoverBackColor = SystemColors.ControlLight;
+        private Color _checkedBackColor = SystemColors.ControlLight;
+
+        public NotificationToggleButton()
+        {
+            _bellIcon = SvgPathIcon.Load("ClaudeUsageTray.Assets.bell.svg");
+            Appearance = Appearance.Button;
+            AutoSize = false;
+            Size = new Size(32, 28);
+            TabStop = true;
+            Cursor = Cursors.Hand;
+            AccessibleRole = AccessibleRole.CheckButton;
+
+            SetStyle(
+                ControlStyles.UserPaint
+                | ControlStyles.AllPaintingInWmPaint
+                | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.ResizeRedraw,
+                true);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _bellIcon.Dispose();
+            base.Dispose(disposing);
+        }
+
+        public void ApplyColors(
+            Color backColor,
+            Color iconColor,
+            Color borderColor,
+            Color hoverBackColor,
+            Color checkedBackColor)
+        {
+            BackColor = backColor;
+            _iconColor = iconColor;
+            _borderColor = borderColor;
+            _hoverBackColor = hoverBackColor;
+            _checkedBackColor = checkedBackColor;
+            Invalidate();
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            base.OnMouseEnter(e);
+            _hovered = true;
+            Invalidate();
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            _hovered = false;
+            Invalidate();
+        }
+
+        protected override void OnCheckedChanged(EventArgs e)
+        {
+            base.OnCheckedChanged(e);
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            Color fill = Checked
+                ? _checkedBackColor
+                : _hovered ? _hoverBackColor : BackColor;
+            using var surface = PopupForm.RoundedRect(
+                new RectangleF(0.5f, 0.5f, Width - 1, Height - 1),
+                PopupForm.ButtonCornerRadius);
+            using (var fillBrush = new SolidBrush(fill))
+            {
+                g.FillPath(fillBrush, surface);
+            }
+
+            using (var borderPen = new Pen(_borderColor))
+            {
+                g.DrawPath(borderPen, surface);
+            }
+
+            float cx = Width / 2f;
+            _bellIcon.Draw(
+                g,
+                Enabled ? _iconColor : SystemColors.GrayText,
+                new RectangleF(cx - 9, 4, 18, 18),
+                1.7f);
+
+            if (!Checked)
+            {
+                using var mutedPen = new Pen(Color.FromArgb(0xD9, 0x30, 0x25), 2.2f)
+                {
+                    StartCap = LineCap.Round,
+                    EndCap = LineCap.Round,
+                };
+                g.DrawLine(mutedPen, cx - 7, 5, cx + 7, 21);
+            }
+
+            if (Focused && ShowFocusCues)
+            {
+                using var focus = PopupForm.RoundedRect(
+                    new RectangleF(3.5f, 3.5f, Width - 7, Height - 7),
+                    3.5f);
+                using var focusPen = new Pen(_iconColor) { DashStyle = DashStyle.Dot };
+                g.DrawPath(focusPen, focus);
+            }
+        }
+    }
+
     private const int PanelWidth = 320;
     private const int PaddingX = 16;
     private const int HeaderHeight = 44;
     private const int RowHeight = 52;
     private const int FooterHeight = 74;
+    private const float PanelCornerRadius = 12f;
+    private const float ButtonCornerRadius = 6f;
 
     private readonly AppConfig _config;
     private readonly List<Row> _rows = new();
 
+    private readonly NotificationToggleButton _notificationsToggle;
+    private readonly ToolTip _notificationToolTip;
     private readonly Button _refreshButton;
     private readonly Button _settingsButton;
     private readonly Button _exitButton;
@@ -27,6 +249,7 @@ public sealed class PopupForm : Form
     private string _diagnostic = "";
     private bool _isStale;
     private bool _dark;
+    private bool _syncingNotificationSetting;
 
     public event EventHandler? RefreshRequested;
     public event EventHandler? SettingsRequested;
@@ -45,6 +268,13 @@ public sealed class PopupForm : Form
         Width = PanelWidth;
         Height = HeaderHeight + FooterHeight;
 
+        _notificationsToggle = new NotificationToggleButton
+        {
+            Checked = _config.NotificationsEnabled,
+            Location = new Point(PanelWidth - PaddingX - 32, 8),
+        };
+        _notificationToolTip = new ToolTip();
+
         _refreshButton = MakeButton("更新");
         _settingsButton = MakeButton("設定");
         _exitButton = MakeButton("終了");
@@ -52,26 +282,87 @@ public sealed class PopupForm : Form
         _refreshButton.Click += (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty);
         _settingsButton.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
         _exitButton.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
+        _notificationsToggle.CheckedChanged += OnNotificationsToggled;
 
+        Controls.Add(_notificationsToggle);
         Controls.Add(_refreshButton);
         Controls.Add(_settingsButton);
         Controls.Add(_exitButton);
 
         ApplyTheme();
+        UpdateRoundedRegions();
+        UpdateNotificationTogglePresentation();
+    }
+
+    /// <summary>設定ファイルの再読み込み後に UI を同期する。</summary>
+    public void SyncSettings()
+    {
+        _syncingNotificationSetting = true;
+        try
+        {
+            _notificationsToggle.Checked = _config.NotificationsEnabled;
+        }
+        finally
+        {
+            _syncingNotificationSetting = false;
+        }
+    }
+
+    private void OnNotificationsToggled(object? sender, EventArgs e)
+    {
+        UpdateNotificationTogglePresentation();
+        if (_syncingNotificationSetting) return;
+
+        bool previous = _config.NotificationsEnabled;
+        _config.NotificationsEnabled = _notificationsToggle.Checked;
+
+        try
+        {
+            _config.Save();
+        }
+        catch (Exception ex)
+        {
+            _config.NotificationsEnabled = previous;
+            SyncSettings();
+
+            MessageBox.Show(
+                $"通知設定を保存できませんでした。\n{ex.Message}",
+                "ClaudeUsageTray",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+    }
+
+    private void UpdateNotificationTogglePresentation()
+    {
+        string state = _notificationsToggle.Checked ? "ON" : "OFF";
+        string action = _notificationsToggle.Checked ? "OFF" : "ON";
+
+        _notificationsToggle.AccessibleName = $"使用率通知: {state}";
+        _notificationsToggle.AccessibleDescription =
+            $"使用率の閾値通知は {state} です。クリックして {action} にします。";
+        _notificationToolTip.SetToolTip(
+            _notificationsToggle,
+            $"使用率通知: {state}（クリックで {action}）");
     }
 
     protected override bool ShowWithoutActivation => false;
 
-    private static Button MakeButton(string text) => new()
+    private static Button MakeButton(string text) => new RoundedButton
     {
         Text = text,
-        FlatStyle = FlatStyle.Flat,
         Height = 28,
         Width = 88,
         TabStop = false,
         Cursor = Cursors.Hand,
         Font = new Font("Yu Gothic UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
     };
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _notificationToolTip.Dispose();
+        base.Dispose(disposing);
+    }
 
     // ---- データ更新 ----
 
@@ -183,7 +474,26 @@ public sealed class PopupForm : Form
         _refreshButton.Location =
             new Point(_settingsButton.Left - _refreshButton.Width - 6, buttonY);
 
+        UpdateRoundedRegions();
         Invalidate();
+    }
+
+    private void UpdateRoundedRegions()
+    {
+        ApplyRoundedRegion(this, PanelCornerRadius);
+    }
+
+    private static void ApplyRoundedRegion(Control control, float radius)
+    {
+        if (control.Width <= 0 || control.Height <= 0) return;
+
+        using GraphicsPath path = RoundedRect(
+            new RectangleF(0, 0, control.Width, control.Height),
+            radius);
+        var next = new Region(path);
+        Region? previous = control.Region;
+        control.Region = next;
+        previous?.Dispose();
     }
 
     // ---- テーマ ----
@@ -206,7 +516,19 @@ public sealed class PopupForm : Form
             b.ForeColor = ForeColorMain;
             b.FlatAppearance.BorderColor = BorderColor;
             b.FlatAppearance.MouseOverBackColor = TrackColor;
+            b.FlatAppearance.MouseDownBackColor = _dark
+                ? Color.FromArgb(0x4A, 0x4E, 0x52)
+                : Color.FromArgb(0xD2, 0xD5, 0xD8);
         }
+
+        _notificationsToggle.ApplyColors(
+            BackColorMain,
+            ForeColorMain,
+            BorderColor,
+            TrackColor,
+            _dark
+                ? Color.FromArgb(0x2C, 0x45, 0x38)
+                : Color.FromArgb(0xE6, 0xF4, 0xEA));
     }
 
     private static Color BarColor(double percent) =>
@@ -234,10 +556,13 @@ public sealed class PopupForm : Form
         using var subBrush = new SolidBrush(SubColor);
         using var trackBrush = new SolidBrush(TrackColor);
 
-        // 外枠
+        // Windows 11 風の丸角の外枠
         using (var pen = new Pen(BorderColor))
+        using (GraphicsPath outline = RoundedRect(
+            new RectangleF(0.5f, 0.5f, Width - 1, Height - 1),
+            PanelCornerRadius))
         {
-            g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+            g.DrawPath(pen, outline);
         }
 
         // ヘッダー
@@ -375,6 +700,8 @@ public sealed class PopupForm : Form
     /// <summary>カーソル位置のモニタで、タスクバーの反対側に寄せて表示する。</summary>
     public void ShowNearTray()
     {
+        UpdateRoundedRegions();
+
         Point cursor = Cursor.Position;
         Screen screen = Screen.FromPoint(cursor);
         Rectangle work = screen.WorkingArea;

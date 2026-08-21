@@ -47,7 +47,8 @@ Windows 側が有効なら WSL には**一切触りません**（`wsl.exe` の�
 
 閾値を**跨いだ瞬間に 1 回だけ**発火します（エッジトリガ）。3 分間隔のポーリングで
 単純比較すると、80% 超が続く間ずっと通知が飛び続けるためです。
-`resets_at` が変わる＝枠がリセットされたとみなして再武装します。
+通知後は同じ使用率レベルのままなら再通知しません。使用率が閾値未満へ戻ると
+再武装され、次に閾値を跨いだときに通知します。`resets_at` の変化は再武装に使いません。
 
 **起動直後の 1 回目は通知しません。** 起動時点で既に閾値を超えていた場合、それは
 アイコンの色で分かるためです。設定の再読み込み直後も同様に抑制します
@@ -185,6 +186,7 @@ Anthropic が枠の種類を増やした場合は `limits[]` の方が追従し�
 | `pollSeconds` | `180` | 更新間隔（秒）。**180 未満は自動的に 180 に引き上げられます** |
 | `warnThresholdPercent` | `80` | 警告トーストの閾値 |
 | `limitThresholdPercent` | `100` | 上限トーストの閾値 |
+| `notificationsEnabled` | `true` | 使用率の閾値通知全体の ON/OFF |
 | `notifyFiveHour` | `true` | 5 時間枠のトースト |
 | `notifySevenDay` | `true` | 週間枠のトースト |
 | `runAtStartup` | `true` | Windows 起動時の自動起動 |
@@ -196,7 +198,9 @@ Anthropic が枠の種類を増やした場合は `limits[]` の方が追従し�
 | `allowWslAutoStart` | `false` | 停止中の WSL を起動してでも読む |
 | `maxStaleMinutes` | `720` | 直近値をグレー表示で使い続ける上限（分） |
 
-編集後はトレイ右クリック →「設定を再読み込み」で反映されます（再起動不要）。
+通知全体の ON/OFF は詳細パネル上部の通知アイコンからも変更でき、
+その場で設定ファイルへ保存されます。設定ファイルを直接編集した場合は、
+トレイ右クリック →「設定を再読み込み」で反映されます（再起動不要）。
 
 ---
 
@@ -265,6 +269,8 @@ Anthropic が枠の種類を増やした場合は `limits[]` の方が追従し�
 | `src/WslBridge.cs` | wsl.exe 経由の起動確認とファイル読み取り |
 | `src/UsageApiClient.cs` | エンドポイント呼び出しとエラー分類 |
 | `src/IconRenderer.cs` | GDI+ でのアイコン描画と HICON 解放 |
+| `src/SvgPathIcon.cs` | 埋め込み SVG パスの軽量レンダリング |
+| `src/Assets/bell.svg` | 通知トグルのベルアイコン |
 | `src/ThemeHelper.cs` | ライト/ダークテーマの判定 |
 | `src/StartupManager.cs` | `HKCU\...\Run` の制御 |
 | `src/ThresholdNotifier.cs` | エッジトリガの閾値判定 |

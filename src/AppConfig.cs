@@ -27,6 +27,10 @@ public sealed class AppConfig
     [JsonPropertyName("limitThresholdPercent")]
     public double LimitThresholdPercent { get; set; } = 100;
 
+    /// <summary>使用率の閾値通知全体のマスタースイッチ。</summary>
+    [JsonPropertyName("notificationsEnabled")]
+    public bool NotificationsEnabled { get; set; } = true;
+
     [JsonPropertyName("notifyFiveHour")]
     public bool NotifyFiveHour { get; set; } = true;
 
@@ -126,6 +130,7 @@ public sealed class AppConfig
         PollSeconds = other.PollSeconds;
         WarnThresholdPercent = other.WarnThresholdPercent;
         LimitThresholdPercent = other.LimitThresholdPercent;
+        NotificationsEnabled = other.NotificationsEnabled;
         NotifyFiveHour = other.NotifyFiveHour;
         NotifySevenDay = other.NotifySevenDay;
         RunAtStartup = other.RunAtStartup;

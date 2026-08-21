@@ -115,6 +115,7 @@ public sealed class PopupForm : Form
     {
         private bool _hovered;
         private readonly SvgPathIcon _bellIcon;
+        private readonly SvgPathIcon _bellOffIcon;
         private Color _iconColor = SystemColors.ControlText;
         private Color _borderColor = SystemColors.ControlDark;
         private Color _hoverBackColor = SystemColors.ControlLight;
@@ -123,6 +124,7 @@ public sealed class PopupForm : Form
         public NotificationToggleButton()
         {
             _bellIcon = SvgPathIcon.Load("ClaudeUsageTray.Assets.bell.svg");
+            _bellOffIcon = SvgPathIcon.Load("ClaudeUsageTray.Assets.bell-off.svg");
             Appearance = Appearance.Button;
             AutoSize = false;
             Size = new Size(32, 28);
@@ -140,7 +142,11 @@ public sealed class PopupForm : Form
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) _bellIcon.Dispose();
+            if (disposing)
+            {
+                _bellIcon.Dispose();
+                _bellOffIcon.Dispose();
+            }
             base.Dispose(disposing);
         }
 
@@ -201,21 +207,15 @@ public sealed class PopupForm : Form
             }
 
             float cx = Width / 2f;
-            _bellIcon.Draw(
+            SvgPathIcon icon = Checked ? _bellIcon : _bellOffIcon;
+            Color iconColor = !Enabled
+                ? SystemColors.GrayText
+                : Checked ? _iconColor : Color.FromArgb(0xD9, 0x30, 0x25);
+            icon.Draw(
                 g,
-                Enabled ? _iconColor : SystemColors.GrayText,
+                iconColor,
                 new RectangleF(cx - 9, 4, 18, 18),
                 1.7f);
-
-            if (!Checked)
-            {
-                using var mutedPen = new Pen(Color.FromArgb(0xD9, 0x30, 0x25), 2.2f)
-                {
-                    StartCap = LineCap.Round,
-                    EndCap = LineCap.Round,
-                };
-                g.DrawLine(mutedPen, cx - 7, 5, cx + 7, 21);
-            }
 
             if (Focused && ShowFocusCues)
             {

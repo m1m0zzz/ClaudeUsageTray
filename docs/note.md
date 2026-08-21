@@ -270,7 +270,7 @@ Anthropic が枠の種類を増やした場合は `limits[]` の方が追従し�
 | `src/UsageApiClient.cs` | エンドポイント呼び出しとエラー分類 |
 | `src/IconRenderer.cs` | GDI+ でのアイコン描画と HICON 解放 |
 | `src/SvgPathIcon.cs` | 埋め込み SVG パスの軽量レンダリング |
-| `src/Assets/bell.svg` | 通知トグルのベルアイコン |
+| `src/Assets/bell*.svg` | 通知トグルの Lucide `bell` / `bell-off` アイコン |
 | `src/ThemeHelper.cs` | ライト/ダークテーマの判定 |
 | `src/StartupManager.cs` | `HKCU\...\Run` の制御 |
 | `src/ThresholdNotifier.cs` | エッジトリガの閾値判定 |

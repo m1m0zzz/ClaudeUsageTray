@@ -25,6 +25,10 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\bell.svg"
                       LogicalName="ClaudeUsageTray.Assets.bell.svg" />
+    <EmbeddedResource Include="Assets\bell-off.svg"
+                      LogicalName="ClaudeUsageTray.Assets.bell-off.svg" />
+    <EmbeddedResource Include="Assets\LUCIDE_LICENSE.txt"
+                      LogicalName="ClaudeUsageTray.Assets.LUCIDE_LICENSE.txt" />
   </ItemGroup>
 
 </Project>

@@ -8,7 +8,7 @@ namespace ClaudeUsageTray;
 
 /// <summary>
 /// 埋め込み SVG のパスを GraphicsPath に変換する軽量アイコンローダー。
-/// このアプリのアイコンで使う絶対座標の M / L / C / Z に限定し、
+/// Lucide アイコンで使う M / L / H / C / A / Z（絶対・相対座標）に対応し、
 /// 汎用 SVG ライブラリの依存を避ける。
 /// </summary>
 internal sealed class SvgPathIcon : IDisposable
@@ -18,7 +18,7 @@ internal sealed class SvgPathIcon : IDisposable
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex TokenRegex = new(
-        @"[MLCZmlcz]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?",
+        @"[A-Za-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly GraphicsPath _path;
@@ -131,24 +131,34 @@ internal sealed class SvgPathIcon : IDisposable
             if (IsCommand(tokens[index]))
             {
                 command = tokens[index++][0];
-                if (char.IsLower(command))
-                {
-                    throw new FormatException($"相対座標の SVG コマンドは未対応です: {command}");
-                }
             }
 
-            switch (command)
+            bool relative = char.IsLower(command);
+            switch (char.ToUpperInvariant(command))
             {
                 case 'M':
-                    current = ReadPoint(tokens, ref index);
+                {
+                    PointF point = ReadPoint(tokens, ref index);
+                    current = relative ? Offset(current, point) : point;
                     figureStart = current;
                     path.StartFigure();
-                    command = 'L';
+                    command = relative ? 'l' : 'L';
                     break;
+                }
 
                 case 'L':
                 {
                     PointF end = ReadPoint(tokens, ref index);
+                    if (relative) end = Offset(current, end);
+                    path.AddLine(current, end);
+                    current = end;
+                    break;
+                }
+
+                case 'H':
+                {
+                    float x = ReadNumber(tokens, ref index);
+                    PointF end = new(relative ? current.X + x : x, current.Y);
                     path.AddLine(current, end);
                     current = end;
                     break;
@@ -159,7 +169,28 @@ internal sealed class SvgPathIcon : IDisposable
                     PointF control1 = ReadPoint(tokens, ref index);
                     PointF control2 = ReadPoint(tokens, ref index);
                     PointF end = ReadPoint(tokens, ref index);
+                    if (relative)
+                    {
+                        control1 = Offset(current, control1);
+                        control2 = Offset(current, control2);
+                        end = Offset(current, end);
+                    }
                     path.AddBezier(current, control1, control2, end);
+                    current = end;
+                    break;
+                }
+
+                case 'A':
+                {
+                    float radiusX = ReadNumber(tokens, ref index);
+                    float radiusY = ReadNumber(tokens, ref index);
+                    float rotation = ReadNumber(tokens, ref index);
+                    bool largeArc = ReadFlag(tokens, ref index);
+                    bool sweep = ReadFlag(tokens, ref index);
+                    PointF end = ReadPoint(tokens, ref index);
+                    if (relative) end = Offset(current, end);
+
+                    AppendArc(path, current, end, radiusX, radiusY, rotation, largeArc, sweep);
                     current = end;
                     break;
                 }
@@ -178,17 +209,152 @@ internal sealed class SvgPathIcon : IDisposable
 
     private static PointF ReadPoint(IReadOnlyList<string> tokens, ref int index)
     {
-        if (index + 1 >= tokens.Count
-            || IsCommand(tokens[index])
-            || IsCommand(tokens[index + 1]))
+        float x = ReadNumber(tokens, ref index);
+        float y = ReadNumber(tokens, ref index);
+        return new PointF(x, y);
+    }
+
+    private static float ReadNumber(IReadOnlyList<string> tokens, ref int index)
+    {
+        if (index >= tokens.Count || IsCommand(tokens[index]))
         {
             throw new FormatException("SVG path の座標が不足しています。");
         }
 
-        float x = float.Parse(tokens[index++], CultureInfo.InvariantCulture);
-        float y = float.Parse(tokens[index++], CultureInfo.InvariantCulture);
-        return new PointF(x, y);
+        return float.Parse(tokens[index++], CultureInfo.InvariantCulture);
     }
+
+    private static bool ReadFlag(IReadOnlyList<string> tokens, ref int index)
+    {
+        float value = ReadNumber(tokens, ref index);
+        return value switch
+        {
+            0 => false,
+            1 => true,
+            _ => throw new FormatException($"SVG arc のフラグが不正です: {value}"),
+        };
+    }
+
+    private static PointF Offset(PointF origin, PointF delta) =>
+        new(origin.X + delta.X, origin.Y + delta.Y);
+
+    /// <summary>SVG の楕円弧を 90 度以下の 3 次ベジェ曲線に分割する。</summary>
+    private static void AppendArc(
+        GraphicsPath path,
+        PointF start,
+        PointF end,
+        float radiusX,
+        float radiusY,
+        float rotationDegrees,
+        bool largeArc,
+        bool sweep)
+    {
+        double rx = Math.Abs(radiusX);
+        double ry = Math.Abs(radiusY);
+
+        if (rx == 0 || ry == 0)
+        {
+            path.AddLine(start, end);
+            return;
+        }
+
+        if (Math.Abs(start.X - end.X) < float.Epsilon
+            && Math.Abs(start.Y - end.Y) < float.Epsilon)
+        {
+            return;
+        }
+
+        double phi = rotationDegrees * Math.PI / 180d;
+        double cosPhi = Math.Cos(phi);
+        double sinPhi = Math.Sin(phi);
+        double halfDx = (start.X - end.X) / 2d;
+        double halfDy = (start.Y - end.Y) / 2d;
+        double x1Prime = cosPhi * halfDx + sinPhi * halfDy;
+        double y1Prime = -sinPhi * halfDx + cosPhi * halfDy;
+
+        double radiiScale = x1Prime * x1Prime / (rx * rx)
+            + y1Prime * y1Prime / (ry * ry);
+        if (radiiScale > 1)
+        {
+            double scale = Math.Sqrt(radiiScale);
+            rx *= scale;
+            ry *= scale;
+        }
+
+        double rxSquared = rx * rx;
+        double rySquared = ry * ry;
+        double x1Squared = x1Prime * x1Prime;
+        double y1Squared = y1Prime * y1Prime;
+        double denominator = rxSquared * y1Squared + rySquared * x1Squared;
+        double numerator = Math.Max(
+            0,
+            rxSquared * rySquared - rxSquared * y1Squared - rySquared * x1Squared);
+        double coefficient = denominator == 0
+            ? 0
+            : (largeArc == sweep ? -1d : 1d) * Math.Sqrt(numerator / denominator);
+
+        double centerXPrime = coefficient * rx * y1Prime / ry;
+        double centerYPrime = coefficient * -ry * x1Prime / rx;
+        double centerX = cosPhi * centerXPrime - sinPhi * centerYPrime
+            + (start.X + end.X) / 2d;
+        double centerY = sinPhi * centerXPrime + cosPhi * centerYPrime
+            + (start.Y + end.Y) / 2d;
+
+        double ux = (x1Prime - centerXPrime) / rx;
+        double uy = (y1Prime - centerYPrime) / ry;
+        double vx = (-x1Prime - centerXPrime) / rx;
+        double vy = (-y1Prime - centerYPrime) / ry;
+        double startAngle = Math.Atan2(uy, ux);
+        double sweepAngle = VectorAngle(ux, uy, vx, vy);
+
+        if (!sweep && sweepAngle > 0) sweepAngle -= Math.PI * 2d;
+        if (sweep && sweepAngle < 0) sweepAngle += Math.PI * 2d;
+
+        int segments = Math.Max(1, (int)Math.Ceiling(Math.Abs(sweepAngle) / (Math.PI / 2d)));
+        double segmentAngle = sweepAngle / segments;
+        PointF segmentStart = start;
+
+        for (int segment = 0; segment < segments; segment++)
+        {
+            double angle1 = startAngle + segment * segmentAngle;
+            double angle2 = angle1 + segmentAngle;
+            double alpha = 4d / 3d * Math.Tan((angle2 - angle1) / 4d);
+
+            PointF control1 = MapEllipsePoint(
+                Math.Cos(angle1) - alpha * Math.Sin(angle1),
+                Math.Sin(angle1) + alpha * Math.Cos(angle1),
+                rx, ry, cosPhi, sinPhi, centerX, centerY);
+            PointF control2 = MapEllipsePoint(
+                Math.Cos(angle2) + alpha * Math.Sin(angle2),
+                Math.Sin(angle2) - alpha * Math.Cos(angle2),
+                rx, ry, cosPhi, sinPhi, centerX, centerY);
+            PointF segmentEnd = segment == segments - 1
+                ? end
+                : MapEllipsePoint(
+                    Math.Cos(angle2),
+                    Math.Sin(angle2),
+                    rx, ry, cosPhi, sinPhi, centerX, centerY);
+
+            path.AddBezier(segmentStart, control1, control2, segmentEnd);
+            segmentStart = segmentEnd;
+        }
+    }
+
+    private static double VectorAngle(double ux, double uy, double vx, double vy) =>
+        Math.Atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+
+    private static PointF MapEllipsePoint(
+        double unitX,
+        double unitY,
+        double radiusX,
+        double radiusY,
+        double cosRotation,
+        double sinRotation,
+        double centerX,
+        double centerY) =>
+        new(
+            (float)(centerX + cosRotation * radiusX * unitX - sinRotation * radiusY * unitY),
+            (float)(centerY + sinRotation * radiusX * unitX + cosRotation * radiusY * unitY));
 
     private static bool IsCommand(string token) =>
         token.Length == 1 && char.IsLetter(token[0]);

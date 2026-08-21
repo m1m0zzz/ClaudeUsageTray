@@ -9,6 +9,7 @@
     <RootNamespace>ClaudeUsageTray</RootNamespace>
     <AssemblyName>ClaudeUsageTray</AssemblyName>
     <Version>0.1.0</Version>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
 
     <!-- 単一EXE・自己完結で配布する場合の既定値。
          dotnet publish -c Release で有効になる。 -->

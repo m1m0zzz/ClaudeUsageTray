@@ -1,9 +1,9 @@
-# ClaudeUsageTray
+
+# <img width="24" height="24" alt="ClaudeUsageTray Icon" src="./icon.png" /> ClaudeUsageTray
+
 
 <img width="318" height="271" alt="ClaudeUsageTray の詳細パネル" src="https://github.com/user-attachments/assets/5c9fc7a4-d2c1-4523-ae85-d0c0e63f9170" />
-
 <br />
-
 <img width="191" height="42" alt="ClaudeUsageTray の通知領域アイコン" src="https://github.com/user-attachments/assets/b7a1cd55-1160-4683-83cc-0b82df462399" />
 
 Claude Code の使用率を Windows の通知領域に常時表示する常駐アプリです。
@@ -218,6 +218,7 @@ ZIP には `ClaudeUsageTray.exe` と `README.md` が含まれます。リポジ�
 | `src/UsageApiClient.cs` | 使用率の取得とエラー分類 |
 | `src/IconRenderer.cs` | トレイアイコンの描画とネイティブハンドルの解放 |
 | `src/SvgPathIcon.cs` | 埋め込み SVG アイコンの描画 |
+| `icon.png` / `src/Assets/icon.ico` | EXE アイコンの原画像／Windows アイコン |
 | `src/ThemeHelper.cs` | Windows のライト／ダークテーマ判定 |
 | `src/StartupManager.cs` | `HKCU\...\Run` による自動起動の制御 |
 | `src/ThresholdNotifier.cs` | 閾値を跨いだときの通知判定 |

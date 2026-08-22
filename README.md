@@ -1,10 +1,7 @@
 
 # <img width="24" height="24" alt="ClaudeUsageTray Icon" src="./icon.png" /> ClaudeUsageTray
 
-
-<img width="318" height="271" alt="ClaudeUsageTray の詳細パネル" src="https://github.com/user-attachments/assets/5c9fc7a4-d2c1-4523-ae85-d0c0e63f9170" />
-<br />
-<img width="191" height="42" alt="ClaudeUsageTray の通知領域アイコン" src="https://github.com/user-attachments/assets/b7a1cd55-1160-4683-83cc-0b82df462399" />
+<img width="340" height="341" alt="image" src="https://github.com/user-attachments/assets/53446e9d-173f-461e-980f-44f465faf23a" />
 
 Claude Code の使用率を Windows の通知領域に常時表示する常駐アプリです。
 

@@ -37,7 +37,8 @@ public sealed class TrayContext : ApplicationContext
     /// </summary>
     private bool _suppressNextNotification = true;
 
-    private sealed record Display(double? Percent, IconState State, string Tooltip);
+    private sealed record Display(
+        double? Percent, double? WeeklyPercent, IconState State, string Tooltip);
 
     public TrayContext(AppConfig config)
     {
@@ -73,7 +74,7 @@ public sealed class TrayContext : ApplicationContext
         };
         _notifyIcon.MouseClick += OnTrayClick;
 
-        ApplyIcon(null, IconState.Unknown);
+        ApplyIcon(null, null, IconState.Unknown);
 
         _timer = new System.Windows.Forms.Timer
         {
@@ -180,26 +181,27 @@ public sealed class TrayContext : ApplicationContext
 
         if (current is null)
         {
-            return new Display(null, IconState.Unknown, "Claude 使用状況（読み込み中）");
+            return new Display(null, null, IconState.Unknown, "Claude 使用状況（読み込み中）");
         }
 
         // 成功
         if (!current.IsError && current.Response is { } response)
         {
             double? percent = _config.ToPercent(response.FiveHour?.Utilization);
+            double? weekly = _config.ToPercent(response.SevenDay?.Utilization);
 
             IconState state = percent is null ? IconState.Unknown
                 : percent.Value >= 100 ? IconState.Full
                 : IconState.Normal;
 
-            return new Display(percent, state, BuildTooltip(response));
+            return new Display(percent, weekly, state, BuildTooltip(response));
         }
 
         // 失敗かつユーザーの操作が必要（再ログイン等）
         if (current.RequiresLogin)
         {
             return new Display(
-                null, IconState.Error, current.ErrorMessage ?? "再ログインが必要です。");
+                null, null, IconState.Error, current.ErrorMessage ?? "再ログインが必要です。");
         }
 
         // 失敗だが直近の成功値がある → グレーで表示し続ける
@@ -213,20 +215,21 @@ public sealed class TrayContext : ApplicationContext
 
                 return new Display(
                     percent,
+                    _config.ToPercent(lastResponse.SevenDay?.Utilization),
                     IconState.Stale,
                     $"{BuildTooltip(lastResponse)}\n{FormatAge(age)}前の値");
             }
         }
 
         return new Display(
-            null, IconState.Unknown, current.ErrorMessage ?? "取得できていません。");
+            null, null, IconState.Unknown, current.ErrorMessage ?? "取得できていません。");
     }
 
     private void Refresh()
     {
         Display display = ComputeDisplay();
 
-        ApplyIcon(display.Percent, display.State);
+        ApplyIcon(display.Percent, display.WeeklyPercent, display.State);
         SetTooltip(display.Tooltip);
 
         if (_popup.Visible && _lastSnapshot is not null)
@@ -235,9 +238,10 @@ public sealed class TrayContext : ApplicationContext
         }
     }
 
-    private void ApplyIcon(double? percent, IconState state)
+    private void ApplyIcon(double? percent, double? weeklyPercent, IconState state)
     {
-        Icon newIcon = IconRenderer.Render(percent, state, ThemeHelper.IsTaskbarDark());
+        Icon newIcon = IconRenderer.Render(
+            percent, weeklyPercent, state, ThemeHelper.IsTaskbarDark());
 
         Icon? old = _currentIcon;
         _currentIcon = newIcon;

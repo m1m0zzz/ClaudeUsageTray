@@ -58,9 +58,11 @@ public static class IconRenderer
     /// アイコンを生成する。呼び出し側は差し替え時に古い Icon を Dispose すること。
     /// </summary>
     /// <param name="percent">5 時間枠の使用率（0〜100）。不明なら null。</param>
+    /// <param name="weeklyPercent">週枠の使用率（0〜100）。右下の角の色に使う。不明なら null。</param>
     /// <param name="state">表示状態。</param>
     /// <param name="darkTaskbar">タスクバーがダークテーマかどうか（縁取りの調整に使う）。</param>
-    public static Icon Render(double? percent, IconState state, bool darkTaskbar)
+    public static Icon Render(
+        double? percent, double? weeklyPercent, IconState state, bool darkTaskbar)
     {
         int size = CurrentIconSize;
 
@@ -88,6 +90,13 @@ public static class IconRenderer
             using (var brush = new SolidBrush(fill))
             {
                 g.FillPath(brush, path);
+
+                // 週枠の状態は右下の角だけ塗り分けて示す。
+                // 古い値・エラー時は本体と同じく色を付けない。
+                if (state is IconState.Normal or IconState.Full && weeklyPercent is not null)
+                {
+                    DrawWeeklyCorner(g, path, rect, ColorForPercent(weeklyPercent.Value));
+                }
 
                 // ライトテーマのタスクバーでは輪郭が背景に溶けやすいので薄く縁取る
                 if (!darkTaskbar)
@@ -150,13 +159,43 @@ public static class IconRenderer
 
                 int rounded = (int)Math.Round(percent.Value, MidpointRounding.AwayFromZero);
 
-                if (rounded >= 100) return (ColorFull, "!!");
+                return (ColorForPercent(percent.Value), rounded >= 100 ? "!!" : rounded.ToString());
+        }
+    }
 
-                Color fill = rounded > 80 ? ColorDanger
-                    : rounded >= 50 ? ColorWarn
-                    : ColorOk;
+    private static Color ColorForPercent(double percent)
+    {
+        int rounded = (int)Math.Round(percent, MidpointRounding.AwayFromZero);
 
-                return (fill, rounded.ToString());
+        return rounded >= 100 ? ColorFull
+            : rounded > 80 ? ColorDanger
+            : rounded >= 50 ? ColorWarn
+            : ColorOk;
+    }
+
+    /// <summary>
+    /// 右下の角を三角形で塗る。角丸の外へはみ出さないよう本体の形でクリップする。
+    /// </summary>
+    private static void DrawWeeklyCorner(
+        Graphics g, GraphicsPath body, RectangleF rect, Color color)
+    {
+        // 角丸で削られるぶんを見越して大きめに取る。16px でも 3px 程度は見える。
+        float leg = rect.Width * 0.5f;
+        var top = new PointF(rect.Right, rect.Bottom - leg);
+        var left = new PointF(rect.Right - leg, rect.Bottom);
+
+        GraphicsState saved = g.Save();
+        try
+        {
+            g.SetClip(body);
+
+            // 本体と同色なら角は溶け込んで見えなくなる。区切り線は 16px で数字の邪魔になるため入れない。
+            using var brush = new SolidBrush(color);
+            g.FillPolygon(brush, new[] { top, new PointF(rect.Right, rect.Bottom), left });
+        }
+        finally
+        {
+            g.Restore(saved);
         }
     }
 

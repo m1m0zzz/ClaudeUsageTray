@@ -1,3 +1,5 @@
+// AppConfig.cs: 設定ファイル（%APPDATA%\ClaudeUsageTray\config.json）の読み書きと値の正規化。
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
 

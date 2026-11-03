@@ -1,3 +1,5 @@
+// UsageModels.cs: API レスポンスのモデルと、画面表示用のデータ。
+
 using System.Text.Json.Serialization;
 
 namespace ClaudeUsageTray;

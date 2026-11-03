@@ -1,3 +1,5 @@
+// Program.cs: エントリーポイント。多重起動防止と DPI 設定を行う。
+
 using System.Diagnostics;
 
 namespace ClaudeUsageTray;

@@ -207,25 +207,6 @@ ClaudeUsageTray-v<version>-win-x64.zip
 ZIP には `ClaudeUsageTray.exe` と `README.md` が含まれます。リポジトリ直下に
 `LICENSE`、`LICENSE.md`、`LICENSE.txt` のいずれかがある場合は、それも同梱されます。
 
-## 構成
-
-| ファイル | 役割 |
-|---|---|
-| `src/Program.cs` | エントリーポイント、多重起動防止、DPI 設定 |
-| `src/AppConfig.cs` | 設定の読み書きと値の正規化 |
-| `src/UsageModels.cs` | API レスポンスと画面表示用データ |
-| `src/CredentialStore.cs` | Windows／WSL の認証情報の探索 |
-| `src/WslBridge.cs` | WSL の起動状態確認とファイル読み取り |
-| `src/UsageApiClient.cs` | 使用率の取得とエラー分類 |
-| `src/IconRenderer.cs` | トレイアイコンの描画とネイティブハンドルの解放 |
-| `src/SvgPathIcon.cs` | 埋め込み SVG アイコンの描画 |
-| `icon.png` / `src/Assets/icon.ico` | EXE アイコンの原画像／Windows アイコン |
-| `src/ThemeHelper.cs` | Windows のライト／ダークテーマ判定 |
-| `src/StartupManager.cs` | `HKCU\...\Run` による自動起動の制御 |
-| `src/ThresholdNotifier.cs` | 閾値を跨いだときの通知判定 |
-| `src/PopupForm.cs` | 詳細パネル |
-| `src/TrayContext.cs` | 取得、表示、操作のオーケストレーション |
-
 ## 既知の制約
 
 - 非公開 API の仕様変更やレート制限の影響を受けます。

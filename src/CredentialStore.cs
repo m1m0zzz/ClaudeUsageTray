@@ -1,3 +1,5 @@
+// CredentialStore.cs: Windows／WSL にある Claude Code の認証情報を探索して読み取る。
+
 using System.Text.Json;
 
 namespace ClaudeUsageTray;

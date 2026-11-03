@@ -1,3 +1,5 @@
+// ThresholdNotifier.cs: 使用率が閾値を跨いだときの通知判定。
+
 namespace ClaudeUsageTray;
 
 public sealed record ToastMessage(string Title, string Body);

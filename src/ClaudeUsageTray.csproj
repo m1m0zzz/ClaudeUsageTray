@@ -9,6 +9,7 @@
     <RootNamespace>ClaudeUsageTray</RootNamespace>
     <AssemblyName>ClaudeUsageTray</AssemblyName>
     <Version>0.1.0</Version>
+    <!-- EXE アイコン。原画像はリポジトリ直下の icon.png。 -->
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
 
     <!-- 単一EXE・自己完結で配布する場合の既定値。

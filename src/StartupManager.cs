@@ -1,3 +1,5 @@
+// StartupManager.cs: HKCU\...\Run による自動起動の制御。
+
 using System.Diagnostics;
 using Microsoft.Win32;
 

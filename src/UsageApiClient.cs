@@ -1,3 +1,5 @@
+// UsageApiClient.cs: 使用率 API の呼び出しとエラー分類。
+
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;

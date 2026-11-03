@@ -1,3 +1,5 @@
+// ThemeHelper.cs: Windows のライト／ダークテーマ判定。
+
 using Microsoft.Win32;
 
 namespace ClaudeUsageTray;

@@ -1,3 +1,5 @@
+// TrayContext.cs: 取得・表示・操作のオーケストレーション。アプリ全体の中心。
+
 using System.Diagnostics;
 using Microsoft.Win32;
 

@@ -1,3 +1,5 @@
+// IconRenderer.cs: トレイアイコンの描画と、ネイティブアイコンハンドルの解放。
+
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;

@@ -1,3 +1,5 @@
+// SvgPathIcon.cs: 埋め込み SVG アイコン（Assets/*.svg）の描画。
+
 using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Reflection;

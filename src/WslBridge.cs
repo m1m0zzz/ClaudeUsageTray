@@ -1,3 +1,5 @@
+// WslBridge.cs: WSL の起動状態確認と、WSL 内のファイル読み取り。
+
 using System.Diagnostics;
 using System.Text;
 

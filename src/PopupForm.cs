@@ -1,3 +1,5 @@
+// PopupForm.cs: トレイアイコン左クリックで開く詳細パネル。
+
 using System.Drawing.Drawing2D;
 
 namespace ClaudeUsageTray;
